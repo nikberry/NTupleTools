@@ -73,6 +73,7 @@ private:
 	bool passesGoodPrimaryVertex(edm::Event& event);
 	bool passesElectronCuts(edm::Event& event);
 	bool passesMuonCuts(edm::Event& event);
+	bool passesDiLeptonCuts(edm::Event& event);
 	bool passesJetCuts(edm::Event& event);
 
 	edm::InputTag hcalNoiseInput_, hcalLaserFilterInput_, ecalDeadCellFilterInput_, ecalDeadCellTriggerPrimitiveFilterInput_,//
@@ -85,7 +86,7 @@ private:
 			trkInput_, vertexInput_, //
 			jetInput_, electronInput_, muonInput_;
 
-	int minNVertices_, maxNVertices_, minNJets_, maxNJets_, minNElectrons_, maxNElectrons_, minNMuons_, maxNMuons_;
+	int minNVertices_, maxNVertices_, minNJets_, maxNJets_, minNElectrons_, maxNElectrons_, minNMuons_, maxNMuons_,	minNLeptons_, maxNLeptons_;
 
 	double minJetPt_, maxAbsJetEta_, minElectronPt_, maxAbsElectronEta_, minMuonPt_, maxAbsMuonEta_;
 

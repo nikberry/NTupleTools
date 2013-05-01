@@ -36,7 +36,9 @@ EventFilter::EventFilter(const edm::ParameterSet& iConfig) :
 		minNElectrons_(iConfig.getParameter<int>("minNElectrons")), //
 		maxNElectrons_(iConfig.getParameter<int>("maxNElectrons")), //
 		minNMuons_(iConfig.getParameter<int>("minNMuons")), //
-		maxNMuons_(iConfig.getParameter<int>("maxNMuons")), //
+		maxNMuons_(iConfig.getParameter<int>("maxNMuons")), //	
+		minNLeptons_(iConfig.getParameter<int>("minNLeptons")), //
+		maxNLeptons_(iConfig.getParameter<int>("maxNLeptons")), //
 		minJetPt_(iConfig.getParameter<double>("minJetPt")), //
 		maxAbsJetEta_(iConfig.getParameter<double>("maxAbsJetEta")), //
 		minElectronPt_(iConfig.getParameter<double>("minElectronPt")), //
@@ -123,12 +125,12 @@ bool EventFilter::passesSelectionStep(edm::Event& event, Filters::value filter) 
 		return passesGoodPrimaryVertex(event);
 	case Filters::passElectronCuts:
 		if (counteitherleptontype_)
-			return passesElectronCuts(event) || passesMuonCuts(event);
+			return passesDiLeptonCuts(event);
 
 		return passesElectronCuts(event);
 	case Filters::passMuonCuts:
 		if (counteitherleptontype_)
-			return passesElectronCuts(event) || passesMuonCuts(event);
+			return passesDiLeptonCuts(event);
 
 		return passesMuonCuts(event);
 	case Filters::passJetCuts:
@@ -270,6 +272,51 @@ bool EventFilter::passesMuonCuts(edm::Event& event) {
 	return result;
 }
 
+bool EventFilter::passesDiLeptonCuts(edm::Event& event) {
+	bool result(false);
+	int nleptons(0);
+
+	edm::Handle < edm::View<reco::Candidate> > muons;
+	event.getByLabel(muonInput_, muons);
+
+	for (edm::View<reco::Candidate>::const_iterator it = muons->begin(); it != muons->end(); ++it) {
+		if (debug_) {
+			cout << "Muon:" << endl;
+			cout << "pT: " << it->pt() << " eta: " << it->eta() << " phi: " << it->phi() << endl;
+		}
+
+		if (it->pt() > minMuonPt_ && fabs(it->eta()) < maxAbsMuonEta_) {
+			++nleptons;
+		}
+	}
+
+	edm::Handle < edm::View<reco::Candidate> > electrons;
+	event.getByLabel(electronInput_, electrons);
+
+	for (edm::View<reco::Candidate>::const_iterator it = electrons->begin(); it != electrons->end(); ++it) {
+		if (debug_) {
+			cout << "Electron:" << endl;
+			cout << "pT: " << it->pt() << " eta: " << it->eta() << " phi: " << it->phi() << endl;
+		}
+
+		if (it->pt() > minElectronPt_ && fabs(it->eta()) < maxAbsElectronEta_) {
+			++nleptons;
+		}
+	}
+
+	
+	if (debug_)
+		cout << "# Leptons = " << nleptons << endl;
+
+	if (nleptons >= minNLeptons_)
+		result = true;
+	if (maxNLeptons_ > -1 && nleptons > maxNLeptons_)
+		result = false;
+	return result;
+}
+
+
+
 bool EventFilter::passesJetCuts(edm::Event& event) {
 	bool result(false);
 
@@ -371,6 +418,9 @@ void EventFilter::fillDescriptions(edm::ConfigurationDescriptions& descriptions)
 
 	desc.add<int>("minNMuons", -1);
 	desc.add<int>("maxNMuons", -1);
+	
+	desc.add<int>("minNLeptons", -1);
+	desc.add<int>("maxNLeptons", -1);
 
 	desc.add<double>("minJetPt", -1);
 	desc.add<double>("maxAbsJetEta", -1);

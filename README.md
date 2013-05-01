@@ -41,9 +41,9 @@ cvs co -r V00-00-08 RecoMET/METAnalyzers
 cvs co -r V00-00-31 -d EGamma/EGammaAnalysisTools UserCode/EGamma/EGammaAnalysisTools
 
 #Bristol Tools
-git clone git@github.com:BristolTopGroup/NTupleProduction.git BristolAnalysis/NTupleTools
+git clone https://github.com/TopPairPlusGamma/NTupleTools.git BristolAnalysis/NTupleTools
 #TopSkimming
-git clone git@github.com:BristolTopGroup/TopSkimming.git TopQuarkAnalysis/TopSkimming
+git clone https://github.com/BristolTopGroup/TopSkimming.git TopQuarkAnalysis/TopSkimming
 
 #setup full version of LHAPDF (faster AND prevents crashes!)
 scram setup lhapdffull

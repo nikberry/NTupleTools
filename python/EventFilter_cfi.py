@@ -45,6 +45,11 @@ EventFilter = cms.EDFilter(
     maxNMuons=cms.int32(-1),
     minMuonPt=cms.double(15.),
     maxAbsMuonEta=cms.double(100.),
+    
+    # Specify number of leptons
+    minNLeptons=cms.int32(-1),
+    maxNLeptons=cms.int32(-1),
+    
     #flags
     debug=cms.bool(False),
     counteitherleptontype=cms.bool(True),
