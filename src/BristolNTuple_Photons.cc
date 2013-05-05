@@ -12,10 +12,12 @@
 #include "RecoEgamma/EgammaTools/interface/ConversionFinder.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
-
-
+#include "EGamma/EGammaAnalysisTools/src/PFIsolationEstimator.cc"
+ 
 BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     inputTag(iConfig.getParameter<edm::InputTag>("InputTag")),
+    vertexTag(iConfig.getParameter<edm::InputTag>("VertexTag")),
+    particleFlowTag(iConfig.getParameter<edm::InputTag>("ParticleFlowTag")),
     prefix  (iConfig.getParameter<std::string>  ("Prefix")),
     suffix  (iConfig.getParameter<std::string>  ("Suffix")),
     maxSize (iConfig.getParameter<unsigned int> ("MaxSize"))
@@ -36,6 +38,13 @@ BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     produces<std::vector<double> > (prefix + "SCphi" + suffix);
     produces<std::vector<double> > (prefix + "E3x3" + suffix);
     produces<std::vector<double> > (prefix + "E5x5" + suffix);
+    produces<std::vector<double> > (prefix + "PfChargedIso03" + suffix);
+    produces<std::vector<double> > (prefix + "PfPhotonIso03" + suffix);
+    produces<std::vector<double> > (prefix + "PfNeutralIso03" + suffix);
+    
+    isolator.initializePhotonIsolation(kTRUE);
+    isolator.setConeSize(0.3);
+       
 }
 
 void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
@@ -56,11 +65,25 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     std::auto_ptr < std::vector<double> > SCphi(new std::vector<double>());
     std::auto_ptr < std::vector<double> > E3x3(new std::vector<double>());
     std::auto_ptr < std::vector<double> > E5x5(new std::vector<double>());
-
+    std::auto_ptr < std::vector<double> > pfchargedIso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > pfphotonIso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > pfneutralIso(new std::vector<double>());
+    
     //-----------------------------------------------------------------
 
     edm::Handle < std::vector<reco::Photon> > photons;
     iEvent.getByLabel(inputTag, photons);
+
+    Handle<reco::VertexCollection>  vertexCollection;
+    iEvent.getByLabel(vertexTag, vertexCollection);
+
+    // All PF Candidate for alternate isolation
+    Handle<reco::PFCandidateCollection> pfCandidatesH;
+    iEvent.getByLabel(particleFlowTag, pfCandidatesH);
+    const  PFCandidateCollection thePfColl = *(pfCandidatesH.product());
+
+    unsigned int ivtx = 0;
+    VertexRef myVtxRef(vertexCollection, ivtx);
 
     if (photons.isValid()) {
         edm::LogInfo("BristolNTuple_PhotonsInfo") << "Total # Photons: " << photons->size();
@@ -69,8 +92,13 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
             // exit from loop when you reach the required number of photons
             if (px->size() >= maxSize)
                 break;
-
-            px->push_back(it->px());
+	  
+	  
+	    isolator.fGetIsolation(&*it, &thePfColl, myVtxRef,vertexCollection);
+	    
+	    //cout<<"PF  :  "<<isolator.getIsolationCharged()<<" : "<<isolator.getIsolationPhoton()<<" : "<<isolator.getIsolationNeutral()<<endl;
+	  
+	    px->push_back(it->px());
             py->push_back(it->py());
             pz->push_back(it->pz());
             energy->push_back(it->energy());
@@ -86,8 +114,10 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
             SCphi->push_back(it->superCluster()->phi());
             E3x3->push_back(it->e3x3());
             E5x5->push_back(it->e5x5());
-
-        }
+	    pfchargedIso->push_back(isolator.getIsolationCharged());
+            pfphotonIso->push_back(isolator.getIsolationPhoton());
+	    pfneutralIso->push_back(isolator.getIsolationNeutral());
+	}
     } else {
         edm::LogError("BristolNTuple_PhotonsError") << "Error! Can't get the product " << inputTag;
     }
@@ -110,4 +140,8 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     iEvent.put(SCphi, prefix + "SCphi" + suffix);
     iEvent.put(E3x3, prefix + "E3x3" + suffix);
     iEvent.put(E5x5, prefix + "E5x5" + suffix);
+    iEvent.put(pfchargedIso, prefix + "PfChargedIso03" + suffix);
+    iEvent.put(pfphotonIso, prefix + "PfPhotonIso03" + suffix);
+    iEvent.put(pfneutralIso, prefix + "PfNeutralIso03" + suffix);
+
 }
