@@ -12,7 +12,9 @@
 #include "RecoEgamma/EgammaTools/interface/ConversionFinder.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "EGamma/EGammaAnalysisTools/src/PFIsolationEstimator.cc"
+#include "RecoEgamma/EgammaTools/interface/ConversionTools.h"
  
 BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     inputTag(iConfig.getParameter<edm::InputTag>("InputTag")),
@@ -41,6 +43,9 @@ BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     produces<std::vector<double> > (prefix + "PfChargedIso03" + suffix);
     produces<std::vector<double> > (prefix + "PfPhotonIso03" + suffix);
     produces<std::vector<double> > (prefix + "PfNeutralIso03" + suffix);
+    produces<std::vector<double> > (prefix + "HcalIso2012" + suffix);
+    produces<std::vector<double> > (prefix + "HtowoE" + suffix);
+    produces<std::vector<double> > (prefix + "ConvSafeEle" + suffix);
     
     isolator.initializePhotonIsolation(kTRUE);
     isolator.setConeSize(0.3);
@@ -68,12 +73,16 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     std::auto_ptr < std::vector<double> > pfchargedIso(new std::vector<double>());
     std::auto_ptr < std::vector<double> > pfphotonIso(new std::vector<double>());
     std::auto_ptr < std::vector<double> > pfneutralIso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > hcalIso2012(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > htowoe(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > convsafeele(new std::vector<double>());
     
     //-----------------------------------------------------------------
 
     edm::Handle < std::vector<reco::Photon> > photons;
     iEvent.getByLabel(inputTag, photons);
-
+    
+    //for pf reliso
     Handle<reco::VertexCollection>  vertexCollection;
     iEvent.getByLabel(vertexTag, vertexCollection);
 
@@ -84,7 +93,18 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 
     unsigned int ivtx = 0;
     VertexRef myVtxRef(vertexCollection, ivtx);
+   
+   //for safe electron veto
+   edm::Handle<reco::BeamSpot> bsHandle;
+   iEvent.getByLabel("offlineBeamSpot", bsHandle);
+   const reco::BeamSpot &beamspot = *bsHandle.product();
 
+   edm::Handle<reco::ConversionCollection> hConversions;
+   iEvent.getByLabel("allConversions", hConversions);
+
+   edm::Handle<reco::GsfElectronCollection> hElectrons;
+   iEvent.getByLabel("gsfElectrons", hElectrons);
+   
     if (photons.isValid()) {
         edm::LogInfo("BristolNTuple_PhotonsInfo") << "Total # Photons: " << photons->size();
 
@@ -97,7 +117,9 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 	    isolator.fGetIsolation(&*it, &thePfColl, myVtxRef,vertexCollection);
 	    
 	    //cout<<"PF  :  "<<isolator.getIsolationCharged()<<" : "<<isolator.getIsolationPhoton()<<" : "<<isolator.getIsolationNeutral()<<endl;
-	  
+	    bool passelectronveto = !ConversionTools::hasMatchedPromptElectron(it->superCluster(), hElectrons, hConversions, beamspot.position());
+	    //cout << "pass con: " << passelectronveto << endl;
+	    
 	    px->push_back(it->px());
             py->push_back(it->py());
             pz->push_back(it->pz());
@@ -117,6 +139,9 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 	    pfchargedIso->push_back(isolator.getIsolationCharged());
             pfphotonIso->push_back(isolator.getIsolationPhoton());
 	    pfneutralIso->push_back(isolator.getIsolationNeutral());
+	    hcalIso2012->push_back(it->hcalTowerSumEtConeDR04() + (it->hadronicOverEm() - it->hadTowOverEm())*it->superCluster()->energy()/cosh(it->superCluster()->eta()));
+	    htowoe->push_back(it->hadTowOverEm());
+	    convsafeele->push_back(passelectronveto);
 	}
     } else {
         edm::LogError("BristolNTuple_PhotonsError") << "Error! Can't get the product " << inputTag;
@@ -143,5 +168,7 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     iEvent.put(pfchargedIso, prefix + "PfChargedIso03" + suffix);
     iEvent.put(pfphotonIso, prefix + "PfPhotonIso03" + suffix);
     iEvent.put(pfneutralIso, prefix + "PfNeutralIso03" + suffix);
-
+    iEvent.put(hcalIso2012, prefix + "HcalIso2012" + suffix);
+    iEvent.put(htowoe, prefix + "HtowoE" + suffix);
+    iEvent.put(convsafeele, prefix + "ConvSafeEle" + suffix);
 }
