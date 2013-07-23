@@ -12,6 +12,7 @@ else:
 process.load('TopQuarkAnalysis.TopSkimming.TtFullyHadronicFilter_cfi')
 process.load('TopQuarkAnalysis.TopSkimming.TtFullyLeptonicFilter_cfi')
 process.load('TopQuarkAnalysis.TopSkimming.TtSemiLeptonicFilter_cfi')
+process.load('BristolAnalysis.NTupleTools.ttgammaMerger_cfi')
 
 process.ttFullHadronicFilter.taggingMode = cms.bool(True)
 process.ttFullLeptonicFilter.taggingMode = cms.bool(True)
@@ -55,6 +56,7 @@ process.makingNTuples = cms.Path(
                       process.hlTrigReport * 
                       process.egammaIDLikelihood * 
                       process.pfMEtSysShiftCorrSequence *
+		      process.ttbarPhotonMerger2to5 *
                       process.patseq * 
                       getattr(process, "producePatPFMETCorrections" + postfix) * 
                       getattr(process, "patMETs" + postfix) * 
@@ -73,7 +75,11 @@ if not options.printEventContent:
     
 if options.useData:
     process.makingNTuples.remove(process.eventWeightPU) 
-    
+
+#if not options.isTTbarMC:
+#    process.makingNTuples.remove(process.ttbarPhotonMerger2to5)
+
+
 if options.useData or not options.isTTbarMC:   
     process.makingNTuples.remove(process.MCFiltersInTaggingMode) 
 
