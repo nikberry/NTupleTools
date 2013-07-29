@@ -45,6 +45,8 @@ git clone https://github.com/TopPairPlusGamma/NTupleTools.git BristolAnalysis/NT
 #TopSkimming
 git clone https://github.com/BristolTopGroup/TopSkimming.git TopQuarkAnalysis/TopSkimming
 
+cvs co -r V06-09-11 TopQuarkAnalysis/TopEventProducers
+
 #setup full version of LHAPDF (faster AND prevents crashes!)
 scram setup lhapdffull
 scram b -j8

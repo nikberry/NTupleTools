@@ -76,8 +76,8 @@ if not options.printEventContent:
 if options.useData:
     process.makingNTuples.remove(process.eventWeightPU) 
 
-#if not options.isTTbarMC:
-#    process.makingNTuples.remove(process.ttbarPhotonMerger2to5)
+if not options.isTTbarMC:
+    process.makingNTuples.remove(process.ttbarPhotonMerger2to5)
 
 
 if options.useData or not options.isTTbarMC:   
