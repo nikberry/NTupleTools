@@ -16,7 +16,6 @@
 <use name="PhysicsTools/Utilities"/>
 <use name="lhapdf"/>
 <use name="PFIsolation/SuperClusterFootprintRemoval"/>
-
 <export>
    <lib   name="1"/>
 </export>

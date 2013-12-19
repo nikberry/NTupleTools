@@ -15,6 +15,7 @@
 #include "DataFormats/BeamSpot/interface/BeamSpot.h"
 #include "EGamma/EGammaAnalysisTools/src/PFIsolationEstimator.cc"
 #include "RecoEgamma/EgammaTools/interface/ConversionTools.h"
+#include "PFIsolation/SuperClusterFootprintRemoval/interface/SuperClusterFootprintRemoval.h"
  
 BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     inputTag(iConfig.getParameter<edm::InputTag>("InputTag")),
@@ -46,6 +47,10 @@ BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     produces<std::vector<double> > (prefix + "HcalIso2012" + suffix);
     produces<std::vector<double> > (prefix + "HtowoE" + suffix);
     produces<std::vector<double> > (prefix + "ConvSafeEle" + suffix);
+    produces<std::vector<double> > (prefix + "SCChIso" + suffix);
+//    produces<std::vector<double> > (prefix + "SCNuIso" + suffix);
+//    produces<std::vector<double> > (prefix + "SCPhoIso" + suffix);
+    
     
     isolator.initializePhotonIsolation(kTRUE);
     isolator.setConeSize(0.3);
@@ -76,6 +81,8 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     std::auto_ptr < std::vector<double> > hcalIso2012(new std::vector<double>());
     std::auto_ptr < std::vector<double> > htowoe(new std::vector<double>());
     std::auto_ptr < std::vector<double> > convsafeele(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > scchiso(new std::vector<double>());
+   
     
     //-----------------------------------------------------------------
 
@@ -104,6 +111,10 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 
    edm::Handle<reco::GsfElectronCollection> hElectrons;
    iEvent.getByLabel("gsfElectrons", hElectrons);
+   
+   SuperClusterFootprintRemoval remover(iEvent,iSetup);
+ //  PFIsolation_struct = remover.PFIsolation(photon.superCluster(),edm::Ptr<Vertex>(vertexHandle,chosen_vertex_index));
+//   PFIsolation_struct = remover.PFIsolation(it.superCluster(),edm::Ptr<Vertex>(vertexHandle,chosen_vertex_index));
    
     if (photons.isValid()) {
         edm::LogInfo("BristolNTuple_PhotonsInfo") << "Total # Photons: " << photons->size();
@@ -142,6 +153,7 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 	    hcalIso2012->push_back(it->hcalTowerSumEtConeDR04() + (it->hadronicOverEm() - it->hadTowOverEm())*it->superCluster()->energy()/cosh(it->superCluster()->eta()));
 	    htowoe->push_back(it->hadTowOverEm());
 	    convsafeele->push_back(passelectronveto);
+	    scchiso->push_back(remover.PFIsolation("charged", it->superCluster()));
 	}
     } else {
         edm::LogError("BristolNTuple_PhotonsError") << "Error! Can't get the product " << inputTag;
@@ -171,4 +183,5 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     iEvent.put(hcalIso2012, prefix + "HcalIso2012" + suffix);
     iEvent.put(htowoe, prefix + "HtowoE" + suffix);
     iEvent.put(convsafeele, prefix + "ConvSafeEle" + suffix);
+    iEvent.put(scchiso, prefix + "SCChIso" + suffix);
 }
