@@ -27,7 +27,7 @@ BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
 {
     produces<std::vector<double> > (prefix + "Px" + suffix);
     produces<std::vector<double> > (prefix + "Py" + suffix);
-    produces<std::vector<double> > (prefix + "Pz" + suffix);
+    produces<std::vector<double> > (prefix + "Pz" + suffix); 
     produces<std::vector<double> > (prefix + "Energy" + suffix);
     produces<std::vector<double> > (prefix + "EcalIso" + suffix);
     produces<std::vector<double> > (prefix + "HcalIso" + suffix);
@@ -47,9 +47,13 @@ BristolNTuple_Photons::BristolNTuple_Photons(const edm::ParameterSet& iConfig) :
     produces<std::vector<double> > (prefix + "HcalIso2012" + suffix);
     produces<std::vector<double> > (prefix + "HtowoE" + suffix);
     produces<std::vector<double> > (prefix + "ConvSafeEle" + suffix);
-    produces<std::vector<double> > (prefix + "SCChIso" + suffix);
-//    produces<std::vector<double> > (prefix + "SCNuIso" + suffix);
-//    produces<std::vector<double> > (prefix + "SCPhoIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoSCChIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoSCNuIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoSCPhIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoRandConeChIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoRandConeNuIso" + suffix);
+    produces<std::vector<double> > (prefix + "phoRandConePhIso" + suffix);
+
     
     
     isolator.initializePhotonIsolation(kTRUE);
@@ -81,7 +85,12 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     std::auto_ptr < std::vector<double> > hcalIso2012(new std::vector<double>());
     std::auto_ptr < std::vector<double> > htowoe(new std::vector<double>());
     std::auto_ptr < std::vector<double> > convsafeele(new std::vector<double>());
-    std::auto_ptr < std::vector<double> > scchiso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoSCchiso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoSCnuiso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoSCphiso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoRandConechIso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoRandConenuIso(new std::vector<double>());
+    std::auto_ptr < std::vector<double> > phoRandConephIso(new std::vector<double>());
    
     
     //-----------------------------------------------------------------
@@ -113,8 +122,6 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
    iEvent.getByLabel("gsfElectrons", hElectrons);
    
    SuperClusterFootprintRemoval remover(iEvent,iSetup);
- //  PFIsolation_struct = remover.PFIsolation(photon.superCluster(),edm::Ptr<Vertex>(vertexHandle,chosen_vertex_index));
-//   PFIsolation_struct = remover.PFIsolation(it.superCluster(),edm::Ptr<Vertex>(vertexHandle,chosen_vertex_index));
    
     if (photons.isValid()) {
         edm::LogInfo("BristolNTuple_PhotonsInfo") << "Total # Photons: " << photons->size();
@@ -153,7 +160,15 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
 	    hcalIso2012->push_back(it->hcalTowerSumEtConeDR04() + (it->hadronicOverEm() - it->hadTowOverEm())*it->superCluster()->energy()/cosh(it->superCluster()->eta()));
 	    htowoe->push_back(it->hadTowOverEm());
 	    convsafeele->push_back(passelectronveto);
-	    scchiso->push_back(remover.PFIsolation("charged", it->superCluster()));
+	    phoSCchiso->push_back(remover.PFIsolation("charged", it->superCluster(), 0));
+	    phoSCnuiso->push_back(remover.PFIsolation("neutral", it->superCluster()));
+	    phoSCphiso->push_back(remover.PFIsolation("photon", it->superCluster()));
+	    phoRandConechIso->push_back(remover.RandomConeIsolation("charged", it->superCluster(), 0));
+	    phoRandConenuIso->push_back(remover.RandomConeIsolation("neutral", it->superCluster()));
+	    phoRandConephIso->push_back(remover.RandomConeIsolation("photon", it->superCluster()));
+
+
+	    
 	}
     } else {
         edm::LogError("BristolNTuple_PhotonsError") << "Error! Can't get the product " << inputTag;
@@ -163,7 +178,7 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     // put vectors in the event
     iEvent.put(px, prefix + "Px" + suffix);
     iEvent.put(py, prefix + "Py" + suffix);
-    iEvent.put(pz, prefix + "Pz" + suffix);
+    iEvent.put(pz, prefix + "Pz" + suffix);    
     iEvent.put(energy, prefix + "Energy" + suffix);
     iEvent.put(ecalIso, prefix + "EcalIso" + suffix);
     iEvent.put(hcalIso, prefix + "HcalIso" + suffix);
@@ -183,5 +198,11 @@ void BristolNTuple_Photons::produce(edm::Event& iEvent, const edm::EventSetup& i
     iEvent.put(hcalIso2012, prefix + "HcalIso2012" + suffix);
     iEvent.put(htowoe, prefix + "HtowoE" + suffix);
     iEvent.put(convsafeele, prefix + "ConvSafeEle" + suffix);
-    iEvent.put(scchiso, prefix + "SCChIso" + suffix);
+    iEvent.put(phoSCchiso, prefix + "phoSCChIso" + suffix);
+    iEvent.put(phoSCnuiso, prefix + "phoSCNuIso" + suffix);
+    iEvent.put(phoSCphiso, prefix + "phoSCPhIso" + suffix);
+    iEvent.put(phoRandConechIso, prefix + "phoRandConeChIso" + suffix);
+    iEvent.put(phoRandConenuIso, prefix + "phoRandConeNuIso" + suffix);
+    iEvent.put(phoRandConephIso, prefix + "phoRandConePhIso" + suffix);    
+
 }
