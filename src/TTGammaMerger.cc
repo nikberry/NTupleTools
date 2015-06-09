@@ -14,7 +14,7 @@
 //
 // Original Author:  Heiner Tholen
 //         Created:  Wed May 23 20:38:31 CEST 2012
-// $Id: TTGammaMerger.cc,v 1.8 2013/06/29 14:56:35 htholen Exp $
+// $Id: TTGammaMerger.cc,v 1.7 2013/06/27 14:30:17 htholen Exp $
 //
 //
 
@@ -70,6 +70,7 @@ class TTGammaMerger : public edm::EDFilter {
 
       const double ptCut_;
       const double drCut_;
+      const double etaCut_;
       TH1D *etKickedPhotons_;
       TH1D *etSurvivingPhotons_;
       TH1D *etAllPhotons_;
@@ -91,12 +92,13 @@ class TTGammaMerger : public edm::EDFilter {
 //
 TTGammaMerger::TTGammaMerger(const edm::ParameterSet& iConfig) :
     ptCut_(iConfig.getParameter<double>("ptCut")),
-    drCut_(iConfig.getParameter<double>("drCut"))
+    drCut_(iConfig.getParameter<double>("drCut")),
+    etaCut_(iConfig.getParameter<double>("etaCut"))
 {
     edm::Service<TFileService> fs;
-    etaKickedPhotons_     = fs->make<TH1D>("etaKickedPhotons",    ";photon #eta / GeV;number of photons", 80, -4., 4.);
-    etaSurvivingPhotons_  = fs->make<TH1D>("etaSurvivingPhotons", ";photon #eta / GeV;number of photons", 80, -4., 4.);
-    etaAllPhotons_        = fs->make<TH1D>("etaAllPhotons",       ";photon #eta / GeV;number of photons", 80, -4., 4.);
+    etaKickedPhotons_     = fs->make<TH1D>("etaKickedPhotons",    ";photon E_{T} / GeV;number of photons", 80, -4., 4.);
+    etaSurvivingPhotons_  = fs->make<TH1D>("etaSurvivingPhotons", ";photon E_{T} / GeV;number of photons", 80, -4., 4.);
+    etaAllPhotons_        = fs->make<TH1D>("etaAllPhotons",       ";photon E_{T} / GeV;number of photons", 80, -4., 4.);
     etKickedPhotons_      = fs->make<TH1D>("etKickedPhotons",     ";photon E_{T} / GeV;number of photons", 70, 0., 700.);
     etSurvivingPhotons_   = fs->make<TH1D>("etSurvivingPhotons",  ";photon E_{T} / GeV;number of photons", 70, 0., 700.);
     etAllPhotons_         = fs->make<TH1D>("etAllPhotons",        ";photon E_{T} / GeV;number of photons", 70, 0., 700.);
@@ -176,10 +178,13 @@ TTGammaMerger::findDaughters(
         int abs_pdg = abs(da->pdgId());
 
         // take only tops, bs and Ws
-        if (abs_pdg == 6 || abs_pdg == 24 || abs_pdg == 5) {
+        if (abs_pdg == 6 || abs_pdg == 24) {
             all.push_back(da);
             findDaughters(da, all);
         }
+  else if (abs_pdg < 6 ||(abs_pdg >10 && abs_pdg < 17)){
+      all.push_back(da);
+  }
     }
 }
 
@@ -255,45 +260,63 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     for (unsigned i = 0; i < photons.size(); ++i) signalPhotons->push_back(*photons.at(i));
     iEvent.put(pOut, "signalPhotons");
 
-    /////////////////////////////////////////////////////// find legs (b's) ///
+    /////////////////////////////////////////////////////// find b's, lightquarks and leptons ///
     const GenParticle* b    = 0;
     const GenParticle* bbar = 0;
+    
+    vector<const GenParticle*> lightquarks;
+    vector<const GenParticle*> leptons;
+    vector<const GenParticle*> neutrinos;
+    vector<const GenParticle*> quarks;
+    vector<const GenParticle*> legs;
 
-    // if mother of photon is a b, the "sister" is takes as leg
-    for (unsigned i = 0; i < photons.size(); ++i) {
-        const GenParticle* mom = (GenParticle*) photons.at(i)->mother();
-        if (abs(mom->pdgId()) == 5) {
-            for (unsigned j = 0; j < mom->numberOfDaughters(); ++j) {
-                const GenParticle* sis = (GenParticle*) mom->daughter(j);
-                if (sis->pdgId() ==  5) b    = sis;
-                if (sis->pdgId() == -5) bbar = sis;
-            }
-        }
-    }
-
-    // if mother of photon is not b, then the status 3 b's are taken
+    // b's are used to check for correct decay
     for (int i = all.size() - 1; i > -1; --i) {
         const GenParticle* p = all.at(i);
-        int stat = p->status();
+        //int stat = p->status();
         int pdg  = p->pdgId();
-        if (!b    && stat == 3 && pdg ==  5) b    = p;
-        if (!bbar && stat == 3 && pdg == -5) bbar = p;
+  int abs_pdg = abs(pdg);
+        if (!b    && pdg ==  5) b    = p;
+        if (!bbar && pdg == -5) bbar = p;
         if (b && bbar) break;
+        if (abs_pdg < 5) lightquarks.push_back(p);
+        else if (abs_pdg == 11 || abs_pdg == 13 || abs_pdg == 15 ) leptons.push_back(p);
     }
 
     if (!(b && bbar)) return true; // top did not decay to W+b: return
 
-    vector<const GenParticle*> legs;
-    legs.push_back(b);
-    legs.push_back(bbar);
-    out << "legs (b, bbar)\n";
-    printParticles(legs, out);
+    vector<const GenParticle*> bquarks;
+    bquarks.push_back(b);
+    bquarks.push_back(bbar);
+    out << "bquarks (b, bbar)\n";
+    printParticles(bquarks, out);
 
-    /////////////////////////////// sort out fails (must fulfill both cuts) ///
+    //////////////////Check for lepton, b and jet cuts //////////////
+    quarks.insert(quarks.end(),bquarks.begin(),bquarks.end());
+    quarks.insert(quarks.end(),lightquarks.begin(),lightquarks.end()); 
+   
+    for (unsigned i = 0; i < quarks.size();++i){
+  const GenParticle* quark = quarks.at(i);
+  if (quark->pt() > 20) return true;
+        for (unsigned j = 0; j < quarks.size();++j ){
+      const GenParticle* leg = quarks.at(j);
+      if (deltaR(*quark, *leg) < 0.5) return true;
+  }
+  for (unsigned k= 0; k<leptons.size();k++){
+      const GenParticle* lepton = leptons.at(k);
+      if (deltaR(*quark, *lepton) < 0.5) return true;
+      }
+    }
+
+    /////////////////////////////// sort out fails (must fulfill all three cuts) ///
+    //////////////////////Only Works if All Photon delta R Cuts are the same ///////
+    
+    legs.insert(legs.end(),quarks.begin(),quarks.end());
+    legs.insert(legs.end(),leptons.begin(),leptons.end());
     bool foundNoSignalPhoton = true;
     for (unsigned i = 0; i < photons.size(); ++i) {
         const GenParticle* photon = photons.at(i);
-        if (photon->pt() > ptCut_) {
+        if (photon->pt() > ptCut_ && photon->eta() < etaCut_) {
             bool closeToLeg = false;
             for (unsigned j = 0; j < legs.size(); ++j) {
                 const GenParticle* leg = legs.at(j);
