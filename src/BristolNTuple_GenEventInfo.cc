@@ -123,7 +123,7 @@ void BristolNTuple_GenEventInfo::produce(edm::Event& iEvent, const edm::EventSet
 				bool result = passesFilter(iEvent, ttbarDecayFlags_.at(mode));
 				if (result) {
 					++numberOfIdentifiedModes;
-					*ttbarDecay.get() = mode + 1; //0 == not ttbar, first decay = 1, first filter = 0
+	 				*ttbarDecay.get() = mode + 1; //0 == not ttbar, first decay = 1, first filter = 0
 				}
 			}
 			if (numberOfIdentifiedModes > 1) {

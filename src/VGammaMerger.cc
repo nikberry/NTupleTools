@@ -1,20 +1,18 @@
 // -*- C++ -*-
 //
-// Package:    TTGammaMerger
-// Class:      TTGammaMerger
+// Package:    VGammaMerger
+// Class:      VGammaMerger
 // 
-/**\class TTGammaMerger TTGammaMerger.cc MyPackage/TTGammaMerger/src/TTGammaMerger.cc
+/**\class VGammaMerger VGammaMerger.cc MyPackage/VGammaMerger/src/VGammaMerger.cc
 
- Description: Removes Signal Overlap in TTbar sample
+ Description: Removes Signal Overlap in VGamma samples
 
  Implementation:
-// Sort out events, that have been simulated with ttgamma matrix element.
+// Sort out events, that have been simulated with VGamma matrix element.
 
 */
 //
-// Original Author:  Heiner Tholen
-//         Created:  Wed May 23 20:38:31 CEST 2012
-// $Id: TTGammaMerger.cc,v 1.7 2013/06/27 14:30:17 htholen Exp $
+// Original Author:  Nik Berry
 //
 //
 
@@ -45,10 +43,10 @@
 // class declaration
 //
 
-class TTGammaMerger : public edm::EDFilter {
+class VGammaMerger : public edm::EDFilter {
    public:
-      explicit TTGammaMerger(const edm::ParameterSet&);
-      ~TTGammaMerger();
+      explicit VGammaMerger(const edm::ParameterSet&);
+      ~VGammaMerger();
 
       static void fillDescriptions(edm::ConfigurationDescriptions& descriptions);
 
@@ -90,7 +88,7 @@ class TTGammaMerger : public edm::EDFilter {
 //
 // constructors and destructor
 //
-TTGammaMerger::TTGammaMerger(const edm::ParameterSet& iConfig) :
+VGammaMerger::VGammaMerger(const edm::ParameterSet& iConfig) :
     ptCut_(iConfig.getParameter<double>("ptCut")),
     drCut_(iConfig.getParameter<double>("drCut")),
     etaCut_(iConfig.getParameter<double>("etaCut"))
@@ -107,7 +105,7 @@ TTGammaMerger::TTGammaMerger(const edm::ParameterSet& iConfig) :
 }
 
 
-TTGammaMerger::~TTGammaMerger()
+VGammaMerger::~VGammaMerger()
 {
 }
 
@@ -117,7 +115,7 @@ TTGammaMerger::~TTGammaMerger()
 //
 
 void
-TTGammaMerger::printParticle(const reco::GenParticle* p, std::ostringstream &out)
+VGammaMerger::printParticle(const reco::GenParticle* p, std::ostringstream &out)
 {
     char buf[256];
     snprintf(buf, 256,
@@ -136,13 +134,13 @@ TTGammaMerger::printParticle(const reco::GenParticle* p, std::ostringstream &out
 }
 
 void
-TTGammaMerger::printParticles(std::vector<const reco::GenParticle*> &v, std::ostringstream &out)
+VGammaMerger::printParticles(std::vector<const reco::GenParticle*> &v, std::ostringstream &out)
 {
     for (unsigned i = 0; i < v.size(); ++i) printParticle(v.at(i), out);
 }
 
 void
-TTGammaMerger::findMothers(
+VGammaMerger::findMothers(
     const reco::GenParticle* p,
     std::vector<const reco::GenParticle*> &moms
 ) {
@@ -168,7 +166,7 @@ TTGammaMerger::findMothers(
 }
 
 void
-TTGammaMerger::findDaughters(
+VGammaMerger::findDaughters(
     const reco::GenParticle* p,
     std::vector<const reco::GenParticle*> &all
 ) {
@@ -177,27 +175,28 @@ TTGammaMerger::findDaughters(
         const reco::GenParticle* da = (const reco::GenParticle*) p->daughter(i);
         int abs_pdg = abs(da->pdgId());
 
-        // take only tops, bs and Ws
-        if (abs_pdg == 6 || abs_pdg == 24) {
+        // take only Ws and Zs
+        if (abs_pdg == 23 || abs_pdg == 24) {
             all.push_back(da);
             findDaughters(da, all);
         }
-  else if (abs_pdg < 6 ||(abs_pdg >10 && abs_pdg < 17)){
-      all.push_back(da);
-  }
+  	else if (abs_pdg < 6 ||(abs_pdg >10 && abs_pdg < 17)){
+      		all.push_back(da);
+  	}
     }
 }
 
 // ------------ method called on each new Event  ------------
 bool
-TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
+VGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+std::cout << "******************1**********" << std::endl;
     using namespace edm;
     using namespace std;
     using reco::GenParticle;
     using reco::deltaR;
 
-    ostringstream out("TTGammaMerger");
+    ostringstream out("VGammaMerger");
     out << "    ID |Stat|    pt       eta     phi   |     px         py         pz        m     |\n";
 
     Handle<vector<GenParticle> > gens;
@@ -209,37 +208,66 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     /////////////////////////////////////////////////// find core particles ///
     vector<const GenParticle*> all;
 
-    // find first top quarks as a starting point
-    GenParticle local_top;
-    GenParticle local_topBar;
-    const GenParticle* top      = 0;
-    const GenParticle* topBar   = 0;
+    // find first W and Zs as a starting point
+    GenParticle local_Wplus;
+    GenParticle local_Wminus;
+    GenParticle local_Z;
+   
+    const GenParticle* Wplus = 0;
+    const GenParticle* Wminus = 0;
+    const GenParticle* Z = 0;
+
     for (vector<GenParticle>::const_iterator i = gens->begin(); i != gens->end(); ++i){
-         if (!top && i->pdgId() ==  6) {
-            local_top = *i;
-            top = &local_top;
+         if (!Wplus && i->pdgId() ==  24) {
+            local_Wplus = *i;
+            Wplus = &local_Wplus;
          }
-         if (!topBar && i->pdgId() == -6) {
-            local_topBar = *i;
-            topBar = &local_topBar;
-         }
-         if (top && topBar) break;
+//         if (!Wminus && i->pdgId() == -24) {
+//            local_Wminus = *i;
+//            Wminus = &local_Wminus;
+//         }
+// 	 if (!Z && i->pdgId() ==  23) {
+//            local_Z = *i;
+//            Z = &local_Z;
+//         }
+//        if (!Z && i->pdgId() == -23) {
+//        	local_Z = *i;
+//       	Z = &local_Z;
+//	 }
+	if (Wplus /*|| Wminus || Z*/) break;
     }
-    out << "top, topBar\n";
-    printParticle(top, out);
-    printParticle(topBar, out);
+ 
+    
+    
+    std::cout << "**************2************" << Wplus << std::endl;
+    
+    out << "W+, W-, Z\n";
+    printParticle(Wplus, out);
+//   printParticle(Wminus, out);
+//   printParticle(Z, out);
+
+std::cout << "****************2.1**********" << std::endl;
 
     // find initial state particles
-    findMothers(top, all);
-    findMothers(topBar, all);
-    out << "top, topBar and moms\n";
+    findMothers(Wplus, all);
+//    findMothers(Wminus, all);
+//    findMothers(Z, all);
+
+std::cout << "*****************2.2***********" << std::endl;
+    
+    out << "W+, W-, Z, and moms\n";
     printParticles(all, out);
+    
+   std::cout << "******************2.3***************" << std::endl; 
 
     // find relevant final states
-    findDaughters(top, all);
-    findDaughters(topBar, all);
-    out << "top, topBar, moms and daughters\n";
+    findDaughters(Wplus, all);
+//    findDaughters(Wminus, all);
+//    findDaughters(Z, all);
+    out << "Wplus, Wminus, Z, moms, and daughters\n";
     printParticles(all, out);
+
+std::cout << "*******************2.5*********" << std::endl;
 
     ///////////////////////////////////////////////// find relevant photons ///
     vector<const GenParticle*> photons;
@@ -255,7 +283,7 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     }
     out << "photons\n";
     printParticles(photons, out);
-
+std::cout << "******************3**************" << std::endl;
     // put signal photons to event
     for (unsigned i = 0; i < photons.size(); ++i) signalPhotons->push_back(*photons.at(i));
     iEvent.put(pOut, "signalPhotons");
@@ -270,7 +298,7 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
     vector<const GenParticle*> quarks;
     vector<const GenParticle*> legs;
 
-    // b's are used to check for correct decay
+    //check for correct decays to leptons or quarks (not top)
     for (int i = all.size() - 1; i > -1; --i) {
         const GenParticle* p = all.at(i);
         //int stat = p->status();
@@ -283,18 +311,23 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
         else if (abs_pdg == 11 || abs_pdg == 13 || abs_pdg == 15 ) leptons.push_back(p);
     }
 
-    if (!(b && bbar)) return true; // top did not decay to W+b: return
+std::cout << "*****************4**************" << std::endl;
+/*    if (!(b && bbar)) return true; // top did not decay to W+b: return
 
-    vector<const GenParticle*> bquarks;
+    vector<const GenParticle*> bquarks;            
     bquarks.push_back(b);
     bquarks.push_back(bbar);
     out << "bquarks (b, bbar)\n";
-    printParticles(bquarks, out);
+    printParticles(bquarks, out); */
+
+std::cout << "*****************5***********" << std::endl;
 
     //////////////////Check for lepton, b and jet cuts //////////////
-    quarks.insert(quarks.end(),bquarks.begin(),bquarks.end());
-    quarks.insert(quarks.end(),lightquarks.begin(),lightquarks.end()); 
+ //   quarks.insert(quarks.end(),bquarks.begin(),bquarks.end());
+ //   quarks.insert(quarks.end(),lightquarks.begin(),lightquarks.end()); 
    
+std::cout << "********************6*********" << std::endl;
+
     for (unsigned i = 0; i < quarks.size();++i){
   const GenParticle* quark = quarks.at(i);
   if (quark->pt() > 20) return true;
@@ -308,6 +341,7 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
       }
     }
 
+std::cout << "*************7***********" << std::endl;
     /////////////////////////////// sort out fails (must fulfill all three cuts) ///
     //////////////////////Only Works if All Photon delta R Cuts are the same ///////
     
@@ -326,7 +360,7 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
             }
             if (!closeToLeg) {
                 foundNoSignalPhoton = false;
-                out << "<TTGammaMerger>: removing Event! "
+                out << "<VGammaMerger>: removing Event! "
                     << "Photon pt < ptCut: (" << photon->pt() << " > " << ptCut_
                     << ") and no deltaR to a leg smaller than " << drCut_ << endl;
                 break;
@@ -335,64 +369,68 @@ TTGammaMerger::filter(edm::Event& iEvent, const edm::EventSetup& iSetup)
         }
     }
 
+std::cout << "**************8***********" << std::endl;
+
     if (foundNoSignalPhoton) {
         for (unsigned i = 0; i < photons.size(); ++i) {
             etSurvivingPhotons_->Fill(photons.at(i)->et());
             etaSurvivingPhotons_->Fill(photons.at(i)->eta());
         }
-        LogInfo("TTGammaMerger") << out.str();
+        LogInfo("VGammaMerger") << out.str();
      } else {
         for (unsigned i = 0; i < photons.size(); ++i) {
             etKickedPhotons_->Fill(photons.at(i)->et());
             etaKickedPhotons_->Fill(photons.at(i)->eta());
         }
-        LogWarning("TTGammaMerger") << out.str();
+        LogWarning("VGammaMerger") << out.str();
     }
+
+std::cout << "********************9************" << std::endl;
     return foundNoSignalPhoton;
 }
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
-TTGammaMerger::beginJob()
+VGammaMerger::beginJob()
 {
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
-TTGammaMerger::endJob() {
+VGammaMerger::endJob() {
 }
 
 // ------------ method called when starting to processes a run  ------------
 bool 
-TTGammaMerger::beginRun(edm::Run&, edm::EventSetup const&)
+VGammaMerger::beginRun(edm::Run&, edm::EventSetup const&)
 { 
   return true;
 }
 
 // ------------ method called when ending the processing of a run  ------------
 bool 
-TTGammaMerger::endRun(edm::Run&, edm::EventSetup const&)
+VGammaMerger::endRun(edm::Run&, edm::EventSetup const&)
 {
   return true;
 }
 
 // ------------ method called when starting to processes a luminosity block  ------------
 bool 
-TTGammaMerger::beginLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&)
+VGammaMerger::beginLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&)
 {
   return true;
 }
 
 // ------------ method called when ending the processing of a luminosity block  ------------
 bool 
-TTGammaMerger::endLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&)
+VGammaMerger::endLuminosityBlock(edm::LuminosityBlock&, edm::EventSetup const&)
 {
   return true;
 }
 
 // ------------ method fills 'descriptions' with the allowed parameters for the module  ------------
 void
-TTGammaMerger::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
+VGammaMerger::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   //The following says we do not know what parameters are allowed so do no validation
   // Please change this to state exactly what you do use, even if it is no parameters
   edm::ParameterSetDescription desc;
@@ -400,4 +438,4 @@ TTGammaMerger::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
   descriptions.addDefault(desc);
 }
 //define this as a plug-in
-DEFINE_FWK_MODULE(TTGammaMerger);
+DEFINE_FWK_MODULE(VGammaMerger);
